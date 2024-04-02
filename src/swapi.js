@@ -28,10 +28,8 @@ async function listMovies() {
     }
     const data = await res.json();
     // Comprovem que hi hagi resposta i que sigui un array
-    if (!data.results || !Array.isArray(data.results)) {
-      throw new Error('API did not return an array');
-    }
-    const movies = data.results.map((movie) => ({
+    
+    const movies = data.map((movie) => ({
       name: movie.title,
       director: movie.director,
       release: movie.release_date,

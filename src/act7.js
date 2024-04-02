@@ -7,12 +7,20 @@ async function setMovieHeading(movieId, titleSelector, infoSelector, directorSel
   const info = document.querySelector(infoSelector);
   const director = document.querySelector(directorSelector);
 
-  // Obtenim la informació de la pelicula
+  if(!movieId){
+    title.innerHTML = null;
+    info.innerHTML = null;
+    director.innerHTML = null;
+  } else{
+    // Obtenim la informació de la pelicula
   const movieInfo = await swapi.getMovieInfo(movieId);
   // Injectem
   title.innerHTML = movieInfo.name;
   info.innerHTML = `Episode ${movieInfo.episodeID} - ${movieInfo.release}`;
   director.innerHTML = `Director: ${movieInfo.director}`;
+  }
+
+  
   
 }
 
@@ -21,16 +29,16 @@ async function initMovieSelect(selector) {
   const select = document.querySelector(selector);
   let option = document.createElement('option');
   option.value = '';
-  option.innerHTML = 'Select a movie';
+  option.innerHTML = 'Selecciona una pel·lícula';
   select.appendChild(option);
   movies.map((movie) => {
-    option = document.createElement('option');
+    const option = document.createElement('option');
     console.log(movie);
-    option.value = movie.episodeID;
+    option.value = _filmIdToEpisodeId(movie.episodeID);
     option.innerHTML = movie.name;
     select.appendChild(option);
   });
-  select.addEventListener('change', _handleOnSelectMovieChanged, false);
+  
 }
 
 function deleteAllCharacterTokens() {
@@ -68,60 +76,28 @@ function _addDivChild(parent, className, html) {
 }
 
 function setMovieSelectCallbacks() {
-  const select = document.querySelector('#movieSelect');
-  const homeworldSelect = document.querySelector('#homeworldSelect');
-
-  select.addEventListener('change', async (event) => {
-    const selectedMovie = event.target.value;
-    const header = document.querySelector('#header');
-
-    // Clear the homeworld dropdown
-    homeworldSelect.innerHTML = '';
-
-    if (selectedMovie === "Selecciona una pel·lícula") {
-      header.innerHTML = '';
-    } else {
-      const movieInfo = await getMovieInfo(selectedMovie);
-      header.innerHTML = movieInfo;
-
-      // Load planets of the characters from the selected movie
-      const planets = await getPlanetsFromMovie(selectedMovie);
-      const initialOption = document.createElement('option');
-      initialOption.value = '';
-      initialOption.innerHTML = 'Selecciona un homeworld';
-      homeworldSelect.appendChild(initialOption);
-
-      planets.forEach((planet) => {
-        const option = document.createElement('option');
-        option.value = planet.id;
-        option.innerHTML = planet.name;
-        homeworldSelect.appendChild(option);
-      });
-
-      // Delete all character cards
-      deleteAllCharacterTokens();
-    }
-  });
+  const selectMovie = document.querySelector('#select-movie');
+  selectMovie.addEventListener('change', _handleOnSelectMovieChanged);
 }
 
 async function _handleOnSelectMovieChanged(event) {
   // Obtenim el valor del selector que en aquest cas contindrà el número d'episodi
   const episodeID = event.target.value;
   // Obtenim les dades de la pel·lícula, però compte episodiID != filmID! :(
-  const movieID = _filmIdToEpisodeId(episodeID);
-  const data = await swapi.getMovieInfo(movieID);
+  await setMovieHeading(episodeID, '.movie__title', '.movie__info', '.movie__director');
+  // const movieID = _filmIdToEpisodeId(episodeID);
+  // const data = await swapi.getMovieInfo(movieID);
   // Actualitzem el header amb les dades de la pel·lícula
-  _setMovieHeading(data);
+  // _setMovieHeading(data);
 }
 
 function _filmIdToEpisodeId(episodeID) {
-  for (let list in episodeToMovieIDs) {
-    // Com que movieId és un string, fem servir el == per comparar (el valor però no el tipus!)
-    if (episodeToMovieIDs[list].e == episodeID) {
-      return episodeToMovieIDs[list].m;
-    }
+  const mapping = episodeToMovieIDs.find((mapping) => mapping.e === episodeID);
+  if (mapping) {
+    return mapping.m;
+  }else {
+    return null;
   }
-  return null;
 }
 
 // "https://swapi.dev/api/films/1/" --> Episode_id = 4 (A New Hope)
