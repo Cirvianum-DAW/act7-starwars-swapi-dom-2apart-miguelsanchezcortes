@@ -7,21 +7,21 @@ async function setMovieHeading(movieId, titleSelector, infoSelector, directorSel
   const info = document.querySelector(infoSelector);
   const director = document.querySelector(directorSelector);
 
-  if(!movieId){
+  if (!movieId) {
     title.innerHTML = null;
     info.innerHTML = null;
     director.innerHTML = null;
-  } else{
+  } else {
     // Obtenim la informació de la pelicula
-  const movieInfo = await swapi.getMovieInfo(movieId);
-  // Injectem
-  title.innerHTML = movieInfo.name;
-  info.innerHTML = `Episode ${movieInfo.episodeID} - ${movieInfo.release}`;
-  director.innerHTML = `Director: ${movieInfo.director}`;
+    const movieInfo = await swapi.getMovieInfo(movieId);
+    // Injectem
+    title.innerHTML = movieInfo.name;
+    info.innerHTML = `Episode ${movieInfo.episodeID} - ${movieInfo.release}`;
+    director.innerHTML = `Director: ${movieInfo.director}`;
   }
 
-  
-  
+
+
 }
 
 async function initMovieSelect(selector) {
@@ -38,33 +38,58 @@ async function initMovieSelect(selector) {
     option.innerHTML = movie.name;
     select.appendChild(option);
   });
-  
+
 }
 
-function deleteAllCharacterTokens() {
-  let listCharacters = document.querySelector('.list__characters');
-  listCharacters.innerHTML = '';
-}
+// function deleteAllCharacterTokens() {
+//   let listCharacters = document.querySelector('.list__characters');
+//   listCharacters.innerHTML = '';
+// }
 
 // EVENT HANDLERS //
 
 function addChangeEventToSelectHomeworld() {
-  let selectHomeworld = document.querySelector('#select-homeworld');
-  selectHomeworld.addEventListener('change', _createCharacterTokens, false);
+  document.querySelector('.list__characters').innerHTML = '';
+  const planeta = document.querySelector('#select-homeworld');
+  planeta.addEventListener('change', _createCharacterTokens)
 }
 
 async function _createCharacterTokens() {
+  const idPelicula = document.querySelector('#select-movie').value;
   const ul = document.querySelector('.list__characters');
-  let data = await swapi.getMovieCharactersAndHomeworlds(selectMovie.value);
-  let characters = data.characters;
-  let homeworlds = data.homeworlds;
-  let selectedHomeworld = selectHomeworld.value;
-  let filteredCharacters = characters.filter((character) => character.homeworld === selectedHomeworld);
-  ul.innerHTML = '';
-  filteredCharacters.map((character) => {
-    let li = document.createElement('li');
-    li.innerHTML = character.name;
+  const planeta = document.querySelector('#select-homeworld').value;
+  if (!idPelicula) {
+    throw new Error('No s\'ha seleccionat cap pel·lícula');
+  }
+  if (!planeta) {
+    throw new Error('No s\'ha seleccionat cap planeta');
+  }
+  const characters = (await swapi.getMovieCharactersAndHomeworlds(idPelicula)).characters;
+  const filteredCharacters = characters.filter((character) => character.homeworld == planeta);
+
+  const listCharacters = document.querySelector('.list__characters');
+  listCharacters.innerHTML = '';
+  filteredCharacters.forEach((character) => {
+    const li = document.createElement('li');
+    li.classList.add('list__characters', 'item', 'character');
     ul.appendChild(li);
+    const img = document.createElement('img');
+    const urlParts = character.url.split('/');
+    const characterNumber = urlParts[urlParts.length - 1];
+    img.src = `../public/assets/people/${characterNumber}.jpg`;
+    img.classList.add('character__image');
+    img.style.maxWidth = '100%';
+    li.appendChild(img);
+
+    const h2 = document.createElement('h2');
+    h2.classList.add('character__name');
+    h2.innerHTML = character.name;
+    li.appendChild(h2);
+    _addDivChild(li, 'character__birth', '<strong>Birth year:</strong> ' + character.birth_year);
+    _addDivChild(li, 'character__eye', '<strong>Eye color:</strong> ' + character.eye_color);
+    _addDivChild(li, 'character__gender', '<strong>Gender:</strong> ' + character.gender);
+    _addDivChild(li, 'character__homeworld', '<strong>Homeworld:</strong> ' + character.homeworld);
+
   });
 }
 
@@ -85,17 +110,23 @@ async function _handleOnSelectMovieChanged(event) {
   const episodeID = event.target.value;
   // Obtenim les dades de la pel·lícula, però compte episodiID != filmID! :(
   await setMovieHeading(episodeID, '.movie__title', '.movie__info', '.movie__director');
-  // const movieID = _filmIdToEpisodeId(episodeID);
-  // const data = await swapi.getMovieInfo(movieID);
-  // Actualitzem el header amb les dades de la pel·lícula
-  // _setMovieHeading(data);
+
+  const selector = document.querySelector('#select-homeworld');
+  selector.innerHTML = '';
+
+  const caracters = await swapi.getMovieCharactersAndHomeworlds(episodeID);
+  const homeworlds = caracters.characters.map((character) => character.homeworld);
+  const homeworldsFiltered = _removeDuplicatesAndSort(homeworlds);
+  _populateHomeWorldSelector(homeworldsFiltered);
+
+  document.querySelector('.list__characters').innerHTML = '';
 }
 
 function _filmIdToEpisodeId(episodeID) {
   const mapping = episodeToMovieIDs.find((mapping) => mapping.e === episodeID);
   if (mapping) {
     return mapping.m;
-  }else {
+  } else {
     return null;
   }
 }
@@ -120,13 +151,18 @@ function _setMovieHeading({ name, episodeID, release, director }) {
 }
 
 function _populateHomeWorldSelector(homeworlds) {
-  const select = document.querySelector('#select-homeworld');
-  select.innerHTML = '';
+  console.log(homeworlds);
+  const selector = document.querySelector('#select-homeworld');
+  selector.innerHTML = '';
+  const option = document.createElement('option');
+  option.value = '';
+  option.innerHTML = 'Selecciona un planeta';
+  selector.appendChild(option);
   homeworlds.forEach((homeworld) => {
     const option = document.createElement('option');
-    option.value = homeworld.url;
-    option.innerHTML = homeworld.name;
-    select.appendChild(option);
+    option.value = homeworld;
+    option.innerHTML = homeworld;
+    selector.appendChild(option);
   });
 }
 
@@ -134,19 +170,15 @@ function _populateHomeWorldSelector(homeworlds) {
  * Funció auxiliar que podem reutilitzar: eliminar duplicats i ordenar alfabèticament un array.
  */
 function _removeDuplicatesAndSort(elements) {
-  // Al crear un Set eliminem els duplicats
-  const set = new Set(elements);
-  // tornem a convertir el Set en un array
-  const array = Array.from(set);
-  // i ordenem alfabèticament
-  return array.sort(swapi._compareByName);
+  const array = [...new Set(elements)];
+  return array.sort();
 }
 
 const act7 = {
   setMovieHeading,
   setMovieSelectCallbacks,
   initMovieSelect,
-  deleteAllCharacterTokens,
+  // deleteAllCharacterTokens,
   addChangeEventToSelectHomeworld,
 };
 
